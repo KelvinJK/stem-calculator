@@ -2,9 +2,17 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     BookMarked, Trash2, Upload, Calendar, Users,
-    DollarSign, TrendingUp, FileText, Plus, Search
+    DollarSign, TrendingUp, FileText, Plus, Search,
+    Download, FileSpreadsheet, Star, Filter
 } from 'lucide-react'
-import Toast from '../components/Toast'
+import {
+    collection, query, where, orderBy, getDocs, deleteDoc, doc
+} from 'firebase/firestore'
+import { db } from '../firebase'
+import { useAuth } from '../context/AuthContext'
+import { exportActivityPDF } from '../utils/exportPDF'
+import { exportActivityExcel } from '../utils/exportExcel'
+import toast from 'react-hot-toast'
 
 function fmt(n) {
     if (!n && n !== 0) return '—'
@@ -13,14 +21,13 @@ function fmt(n) {
 
 function fmtDate(dateStr) {
     if (!dateStr) return '—'
-    try {
-        return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    } catch { return dateStr }
+    try { return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+    catch { return dateStr }
 }
 
-function fmtSaved(isoStr) {
-    if (!isoStr) return ''
-    const d = new Date(isoStr)
+function fmtSaved(ts) {
+    if (!ts) return ''
+    const d = ts.toDate ? ts.toDate() : new Date(ts)
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -31,63 +38,71 @@ function ProfitBadge({ margin }) {
 
 export default function SavedActivities() {
     const [activities, setActivities] = useState([])
+    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
-    const [toast, setToast] = useState(null)
+    const [filterType, setFilterType] = useState('all')
     const [deleteConfirm, setDeleteConfirm] = useState(null)
     const navigate = useNavigate()
-
-    const showToast = (msg, type = 'success') => {
-        setToast({ msg, type })
-        setTimeout(() => setToast(null), 3000)
-    }
+    const { currentUser } = useAuth()
 
     useEffect(() => {
-        const saved = JSON.parse(localStorage.getItem('stem_activities') || '[]')
-        setActivities(saved)
-    }, [])
+        fetchActivities()
+    }, [currentUser])
 
-    const filtered = activities.filter(a =>
-        !search || a.name?.toLowerCase().includes(search.toLowerCase())
-    )
-
-    const handleDelete = (id) => {
-        const updated = activities.filter(a => a.id !== id)
-        setActivities(updated)
-        localStorage.setItem('stem_activities', JSON.stringify(updated))
-        setDeleteConfirm(null)
-        showToast('Activity deleted.', 'success')
+    async function fetchActivities() {
+        setLoading(true)
+        try {
+            const q = query(
+                collection(db, 'activities'),
+                where('userId', '==', currentUser.uid),
+                orderBy('savedAt', 'desc')
+            )
+            const snap = await getDocs(q)
+            setActivities(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        } catch (err) {
+            console.error(err)
+            toast.error('Failed to load activities.')
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleLoad = (act) => {
-        // Store the activity to load in sessionStorage, then navigate
+    const filtered = activities.filter(a => {
+        const matchSearch = !search || a.name?.toLowerCase().includes(search.toLowerCase())
+        const matchType = filterType === 'all' || a.sessionType === filterType
+        return matchSearch && matchType
+    })
+
+    async function handleDelete(id) {
+        try {
+            await deleteDoc(doc(db, 'activities', id))
+            setActivities(prev => prev.filter(a => a.id !== id))
+            setDeleteConfirm(null)
+            toast.success('Activity deleted.')
+        } catch {
+            toast.error('Failed to delete.')
+        }
+    }
+
+    function handleLoad(act) {
         sessionStorage.setItem('load_activity', JSON.stringify(act))
         navigate('/')
-        showToast(`"${act.name}" loaded into calculator.`, 'success')
     }
 
     return (
         <div className="page-container">
-            {toast && <Toast msg={toast.msg} type={toast.type} />}
-
             {/* Delete Confirm Modal */}
             {deleteConfirm && (
                 <div className="modal-backdrop" onClick={() => setDeleteConfirm(null)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-title">
-                            <Trash2 size={20} color="#dc2626" />
-                            Delete Activity
-                        </div>
-                        <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                            Are you sure you want to delete <strong>"{deleteConfirm.name}"</strong>?
-                            This action cannot be undone.
+                        <div className="modal-title"><Trash2 size={20} color="#dc2626" /> Delete Session</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                            Are you sure you want to delete <strong>"{deleteConfirm.name}"</strong>? This cannot be undone.
                         </p>
                         <div className="modal-actions">
                             <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button>
-                            <button
-                                className="btn"
-                                style={{ background: '#dc2626', color: 'white' }}
-                                onClick={() => handleDelete(deleteConfirm.id)}
-                            >
+                            <button className="btn" style={{ background: '#dc2626', color: 'white' }}
+                                onClick={() => handleDelete(deleteConfirm.id)}>
                                 <Trash2 size={15} /> Delete
                             </button>
                         </div>
@@ -95,66 +110,81 @@ export default function SavedActivities() {
                 </div>
             )}
 
+            {/* Header */}
             <div className="page-header flex items-center justify-between">
                 <div>
                     <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <BookMarked size={26} color="#2563eb" />
-                        Saved Activities
+                        <BookMarked size={26} color="#2563eb" /> Saved Sessions
                     </h1>
                     <p>
-                        {activities.length === 0
-                            ? 'No saved activities yet. Use the calculator to create and save one.'
-                            : `${activities.length} saved activit${activities.length !== 1 ? 'ies' : 'y'} — load any into the calculator.`}
+                        {loading ? 'Loading…' : activities.length === 0
+                            ? 'No saved sessions yet. Use the calculator to create one.'
+                            : `${activities.length} saved session${activities.length !== 1 ? 's' : ''} — load any into the calculator.`}
                     </p>
                 </div>
                 <button className="btn btn-primary" onClick={() => navigate('/')}>
-                    <Plus size={15} /> New Activity
+                    <Plus size={15} /> New Session
                 </button>
             </div>
 
-            {/* Search */}
+            {/* Filters */}
             {activities.length > 0 && (
                 <div className="card" style={{ marginBottom: '1.25rem' }}>
                     <div className="card-body" style={{ padding: '1rem 1.25rem' }}>
-                        <div style={{ position: 'relative' }}>
-                            <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                            <input
-                                className="form-input"
-                                placeholder="Search saved activities..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                style={{ paddingLeft: '2.25rem' }}
-                            />
+                        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                                <Search size={15} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input className="form-input" placeholder="Search sessions…"
+                                    value={search} onChange={e => setSearch(e.target.value)}
+                                    style={{ paddingLeft: '2.25rem' }} />
+                            </div>
+                            <select className="form-input form-select" value={filterType}
+                                onChange={e => setFilterType(e.target.value)}
+                                style={{ width: 'auto', minWidth: 160 }}>
+                                <option value="all">All Types</option>
+                                <option value="open">Open Sessions</option>
+                                <option value="invited">Invited Events</option>
+                            </select>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Empty State */}
-            {activities.length === 0 ? (
+            {/* Loading */}
+            {loading && (
+                <div className="card">
+                    <div className="empty-state">
+                        <div className="spinner" style={{ width: 40, height: 40, margin: '0 auto 1rem' }} />
+                        <p>Loading your sessions…</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && activities.length === 0 && (
                 <div className="card">
                     <div className="empty-state">
                         <BookMarked />
-                        <h3>No Saved Activities</h3>
-                        <p>
-                            Use the Calculator to plan your STEM session, set costs and profit margin,
-                            then click "Save Activity" to store it here as a reusable template.
-                        </p>
-                        <button className="btn btn-primary" onClick={() => navigate('/')}>
-                            <Plus size={15} /> Create First Activity
-                        </button>
+                        <h3>No Saved Sessions</h3>
+                        <p>Use the Calculator to plan your STEM session, set costs and profit margin, then click "Save Session" to store it here.</p>
+                        <button className="btn btn-primary" onClick={() => navigate('/')}><Plus size={15} /> Create First Session</button>
                     </div>
                 </div>
-            ) : filtered.length === 0 ? (
+            )}
+
+            {!loading && activities.length > 0 && filtered.length === 0 && (
                 <div className="card">
                     <div className="empty-state">
                         <Search />
                         <h3>No Results</h3>
-                        <p>No activities match your search. Try a different keyword.</p>
-                        <button className="btn btn-secondary" onClick={() => setSearch('')}>Clear Search</button>
+                        <p>No sessions match your filters. Try a different search or clear the filter.</p>
+                        <button className="btn btn-secondary" onClick={() => { setSearch(''); setFilterType('all') }}>Clear Filters</button>
                     </div>
                 </div>
-            ) : (
+            )}
+
+            {/* Grid */}
+            {!loading && filtered.length > 0 && (
                 <div className="activities-grid">
                     {filtered.map(act => (
                         <div key={act.id} className="activity-card">
@@ -162,23 +192,18 @@ export default function SavedActivities() {
                             <div className="activity-card-header">
                                 <div className="flex items-center justify-between mb-1">
                                     <div className="activity-card-title" title={act.name}>{act.name}</div>
-                                    <ProfitBadge margin={act.profit_margin ?? 0} />
+                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                        {act.sessionType === 'invited' && (
+                                            <span className="badge badge-blue"><Star size={11} /> Invited</span>
+                                        )}
+                                        <ProfitBadge margin={act.profitMargin ?? 0} />
+                                    </div>
                                 </div>
                                 <div className="activity-card-meta">
-                                    {act.date && (
-                                        <span className="meta-item">
-                                            <Calendar /> {fmtDate(act.date)}
-                                        </span>
-                                    )}
-                                    {act.student_count > 0 && (
-                                        <span className="meta-item">
-                                            <Users /> {act.student_count} students
-                                        </span>
-                                    )}
-                                    {act.cost_items?.length > 0 && (
-                                        <span className="meta-item">
-                                            <FileText /> {act.cost_items.length} cost item{act.cost_items.length !== 1 ? 's' : ''}
-                                        </span>
+                                    {act.date && <span className="meta-item"><Calendar /> {fmtDate(act.date)}</span>}
+                                    {act.studentCount > 0 && <span className="meta-item"><Users /> {act.studentCount} students</span>}
+                                    {act.activities?.length > 0 && (
+                                        <span className="meta-item"><FileText /> {act.activities.length} activit{act.activities.length !== 1 ? 'ies' : 'y'}</span>
                                     )}
                                 </div>
                             </div>
@@ -187,65 +212,67 @@ export default function SavedActivities() {
                             <div className="activity-card-body">
                                 <div className="cost-breakdown">
                                     <div className="cost-row">
-                                        <span className="label">Total Costs</span>
-                                        <span className="value">{fmt(act.total_cost)}</span>
+                                        <span className="label">Base Cost</span>
+                                        <span className="value">{fmt(act.baseCost || act.total_cost)}</span>
                                     </div>
-                                    {act.student_count > 0 && (
+                                    {act.sessionType === 'invited' && act.adjustedCost && act.adjustedCost !== act.baseCost && (
+                                        <div className="cost-row">
+                                            <span className="label">Adjusted Cost</span>
+                                            <span className="value" style={{ color: '#7c3aed' }}>{fmt(act.adjustedCost)}</span>
+                                        </div>
+                                    )}
+                                    {act.studentCount > 0 && (
                                         <div className="cost-row">
                                             <span className="label">Cost per Student</span>
-                                            <span className="value">{fmt((act.total_cost || 0) / act.student_count)}</span>
+                                            <span className="value">{fmt((act.adjustedCost || act.baseCost || 0) / act.studentCount)}</span>
                                         </div>
                                     )}
                                     <div className="divider" />
                                     <div className="cost-row">
                                         <span className="label" style={{ fontWeight: 600 }}>Suggested Price</span>
-                                        <span className="value" style={{ color: '#2563eb', fontSize: '1rem' }}>{fmt(act.suggested_price)}</span>
+                                        <span className="value" style={{ color: '#2563eb', fontSize: '1rem' }}>{fmt(act.suggestedPrice)}</span>
                                     </div>
-                                    {act.student_count > 0 && (
+                                    {act.studentCount > 0 && (
                                         <div className="cost-row">
                                             <span className="label">Price per Student</span>
-                                            <span className="value" style={{ color: '#16a34a', fontWeight: 700 }}>{fmt(act.price_per_student)}</span>
+                                            <span className="value" style={{ color: 'var(--success)', fontWeight: 700 }}>{fmt(act.pricePerStudent)}</span>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Notes */}
                                 {act.notes && (
                                     <div style={{
-                                        background: '#f8fafc',
-                                        borderRadius: '8px',
-                                        padding: '0.625rem 0.875rem',
-                                        fontSize: '0.78rem',
-                                        color: '#64748b',
-                                        lineHeight: 1.5,
-                                        marginTop: '0.75rem',
-                                        borderLeft: '3px solid #e2e8f0',
-                                    }}>
-                                        {act.notes}
-                                    </div>
+                                        background: 'var(--bg-primary)', borderRadius: 8, padding: '0.6rem 0.875rem',
+                                        fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5,
+                                        marginTop: '0.75rem', borderLeft: '3px solid var(--border-color)',
+                                    }}>{act.notes}</div>
                                 )}
 
-                                {act.saved_at && (
+                                {act.savedAt && (
                                     <p className="text-xs text-muted" style={{ marginTop: '0.75rem' }}>
-                                        Saved {fmtSaved(act.saved_at)}
+                                        Saved {fmtSaved(act.savedAt)}
                                     </p>
                                 )}
                             </div>
 
                             {/* Footer */}
                             <div className="activity-card-footer">
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => setDeleteConfirm(act)}
-                                >
+                                <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(act)}>
                                     <Trash2 size={13} /> Delete
                                 </button>
-                                <button
-                                    className="btn btn-outline btn-sm"
-                                    onClick={() => handleLoad(act)}
-                                >
-                                    <Upload size={13} /> Load
-                                </button>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <button className="btn btn-secondary btn-sm" title="Export PDF"
+                                        onClick={() => exportActivityPDF(act)}>
+                                        <Download size={13} />
+                                    </button>
+                                    <button className="btn btn-secondary btn-sm" title="Export Excel"
+                                        onClick={() => exportActivityExcel(act)}>
+                                        <FileSpreadsheet size={13} />
+                                    </button>
+                                    <button className="btn btn-outline btn-sm" onClick={() => handleLoad(act)}>
+                                        <Upload size={13} /> Load
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

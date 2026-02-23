@@ -1,0 +1,143 @@
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
+function fmt(n) {
+    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+}
+
+export function exportActivityPDF(session) {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const margin = 18
+
+    // Header bar
+    doc.setFillColor(30, 58, 95)
+    doc.rect(0, 0, pageW, 28, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('STEM Sessions — Cost Breakdown Report', margin, 18)
+
+    // Session info
+    doc.setFontSize(9)
+    doc.setTextColor(180, 200, 230)
+    const savedDate = session.savedAt?.toDate
+        ? session.savedAt.toDate().toLocaleDateString('en-US', { dateStyle: 'medium' })
+        : new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })
+    doc.text(`Generated: ${savedDate}`, pageW - margin, 18, { align: 'right' })
+
+    let y = 36
+
+    // Session Summary section
+    doc.setFontSize(13)
+    doc.setTextColor(30, 58, 95)
+    doc.setFont('helvetica', 'bold')
+    doc.text(session.name || 'Untitled Session', margin, y)
+    y += 7
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    const metaItems = [
+        session.date && `Date: ${session.date}`,
+        session.studentCount && `Students: ${session.studentCount}`,
+        `Session Type: ${session.sessionType === 'invited' ? 'Invited Event' : 'Open Session'}`,
+        `Profit Margin: ${session.profitMargin}%`,
+    ].filter(Boolean)
+    doc.text(metaItems.join('   |   '), margin, y)
+    y += 5
+
+    if (session.notes) {
+        doc.setTextColor(100, 100, 100)
+        doc.text(`Notes: ${session.notes}`, margin, y, { maxWidth: pageW - margin * 2 })
+        y += 8
+    }
+    y += 3
+
+    // Per-activity cost tables
+    const activities = session.activities || []
+    activities.forEach((act, idx) => {
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Activity ${idx + 1}: ${act.name || 'Unnamed'}`, margin, y)
+        y += 2
+
+        const rows = (act.costItems || []).map(item => {
+            const qty = parseFloat(item.quantity) || 0
+            const unit = parseFloat(item.unit_cost) || 0
+            return [
+                item.description || '—',
+                item.category || '—',
+                qty.toString(),
+                fmt(unit),
+                fmt(qty * unit),
+            ]
+        })
+
+        autoTable(doc, {
+            startY: y,
+            head: [['Description', 'Category', 'Qty', 'Unit Cost', 'Total']],
+            body: rows,
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [239, 246, 255], textColor: [30, 58, 95], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+        })
+        y = doc.lastAutoTable.finalY + 6
+    })
+
+    // Criteria
+    if (session.sessionType === 'invited' && session.selectedCriteria?.length > 0) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 58, 95)
+        doc.text('Applied Session Criteria:', margin, y)
+        y += 5
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(80, 80, 80)
+        session.selectedCriteria.forEach(c => {
+            doc.text(`• ${c.label}`, margin + 3, y)
+            y += 5
+        })
+        y += 2
+    }
+
+    // Pricing Summary box
+    doc.setFillColor(239, 246, 255)
+    doc.roundedRect(margin, y, pageW - margin * 2, 42, 3, 3, 'F')
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 58, 95)
+    doc.text('Pricing Summary', margin + 5, y + 8)
+
+    const summaryRows = [
+        ['Base Cost', fmt(session.baseCost || 0)],
+        session.sessionType === 'invited' ? ['Adjusted Cost (criteria)', fmt(session.adjustedCost || 0)] : null,
+        [`Profit (${session.profitMargin}%)`, fmt(session.profitAmount || 0)],
+        ['Suggested Session Price', fmt(session.suggestedPrice || 0)],
+        session.studentCount > 0 ? ['Price Per Student', fmt(session.pricePerStudent || 0)] : null,
+    ].filter(Boolean)
+
+    let sy = y + 13
+    summaryRows.forEach(([label, value]) => {
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+        doc.text(label, margin + 5, sy)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 58, 95)
+        doc.text(value, pageW - margin - 5, sy, { align: 'right' })
+        sy += 6
+    })
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(160, 160, 160)
+    doc.text('Generated by STEM Sessions Cost Calculator', pageW / 2, 290, { align: 'center' })
+
+    doc.save(`${session.name || 'session'}-cost-report.pdf`)
+}

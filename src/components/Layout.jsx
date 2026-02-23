@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { Calculator, BookMarked, Menu, X, Beaker } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Calculator, BookMarked, Menu, X, Beaker, Moon, Sun, LogOut, LayoutDashboard, User } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import toast from 'react-hot-toast'
 
 const navItems = [
     { title: 'Calculator', url: '/', icon: Calculator },
@@ -9,25 +11,41 @@ const navItems = [
 
 export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [theme, setTheme] = useState(() => localStorage.getItem('stem-theme') || 'light')
     const location = useLocation()
+    const navigate = useNavigate()
+    const { currentUser, isAdmin, logout } = useAuth()
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme)
+        localStorage.setItem('stem-theme', theme)
+    }, [theme])
+
+    const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
 
     const isActive = (url) => {
-        if (url === '/') return location.pathname === '/' || location.pathname === '/Calculator'
-        return location.pathname.toLowerCase() === url.toLowerCase()
+        if (url === '/') return location.pathname === '/'
+        return location.pathname.toLowerCase().startsWith(url.toLowerCase())
+    }
+
+    async function handleLogout() {
+        try {
+            await logout()
+            navigate('/login')
+        } catch {
+            toast.error('Failed to sign out.')
+        }
     }
 
     return (
         <div className="app-layout">
-            {/* Backdrop for mobile */}
             {sidebarOpen && (
-                <div
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 99 }}
-                    onClick={() => setSidebarOpen(false)}
-                />
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 99 }}
+                    onClick={() => setSidebarOpen(false)} />
             )}
 
-            {/* Sidebar */}
             <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+                {/* Brand */}
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
                         <Beaker size={22} color="white" />
@@ -38,56 +56,71 @@ export default function Layout({ children }) {
                     </div>
                 </div>
 
+                {/* Navigation */}
                 <nav className="sidebar-nav">
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.title}
-                            to={item.url}
+                    {navItems.map(item => (
+                        <NavLink key={item.title} to={item.url}
                             className={`nav-item ${isActive(item.url) ? 'active' : ''}`}
-                            onClick={() => setSidebarOpen(false)}
-                        >
-                            <item.icon />
+                            onClick={() => setSidebarOpen(false)}>
+                            <item.icon size={19} />
                             <span>{item.title}</span>
                         </NavLink>
                     ))}
+
+                    {isAdmin && (
+                        <NavLink to="/admin"
+                            className={`nav-item ${isActive('/admin') ? 'active' : ''}`}
+                            onClick={() => setSidebarOpen(false)}>
+                            <LayoutDashboard size={19} />
+                            <span>Admin Dashboard</span>
+                        </NavLink>
+                    )}
                 </nav>
 
-                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #f1f5f9' }}>
-                    <div style={{
-                        background: 'linear-gradient(135deg, #eff6ff, #eef2ff)',
-                        borderRadius: '12px',
-                        padding: '1rem',
-                        fontSize: '0.75rem',
-                        color: '#64748b',
-                        lineHeight: 1.5,
-                    }}>
-                        <strong style={{ color: '#1e3a5f', display: 'block', marginBottom: '0.25rem' }}>💡 Pro Tip</strong>
-                        Save your frequently used activity templates to quickly load them in the calculator.
+                {/* Pro tip */}
+                <div style={{ padding: '0 1rem', marginBottom: '0.75rem' }}>
+                    <div className="sidebar-tip">
+                        💡 <strong>Pro Tip</strong><br />
+                        Save activities as templates to reuse them quickly in future sessions.
+                    </div>
+                </div>
+
+                {/* User + controls */}
+                <div className="sidebar-footer">
+                    <div className="sidebar-user">
+                        <div className="user-avatar">
+                            <User size={16} color="white" />
+                        </div>
+                        <div className="user-info">
+                            <div className="user-name">{currentUser?.displayName || 'User'}</div>
+                            <div className="user-email">{currentUser?.email}</div>
+                        </div>
+                    </div>
+                    <div className="sidebar-controls">
+                        <button className="ctrl-btn" onClick={toggleTheme} title="Toggle dark mode">
+                            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                        </button>
+                        <button className="ctrl-btn ctrl-btn-danger" onClick={handleLogout} title="Sign out">
+                            <LogOut size={17} />
+                        </button>
                     </div>
                 </div>
             </aside>
 
-            {/* Main Content */}
             <main className="main-content">
                 {/* Mobile header */}
-                <header style={{
-                    background: 'white',
-                    borderBottom: '1px solid #e2e8f0',
-                    padding: '0.875rem 1.25rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                }}
-                    className="hidden-desktop"
-                >
-                    <button
-                        className="btn btn-secondary btn-icon"
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                        style={{ display: 'flex' }}
-                    >
+                <header className="mobile-header">
+                    <button className="btn btn-secondary btn-icon"
+                        onClick={() => setSidebarOpen(s => !s)}
+                        style={{ display: 'flex' }}>
                         {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
                     </button>
-                    <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e3a5f' }}>STEM Sessions</h1>
+                    <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                        STEM Sessions
+                    </h1>
+                    <button className="ctrl-btn" onClick={toggleTheme}>
+                        {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                    </button>
                 </header>
 
                 <div style={{ flex: 1, overflow: 'auto' }}>
