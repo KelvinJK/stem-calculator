@@ -30,7 +30,7 @@ export function exportActivityExcel(session) {
     XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary')
 
     // ── Sheet 2: Cost Items (all activities) ───────────────────────
-    const costRows = [['Activity', 'Description', 'Category', 'Quantity', 'Unit Cost ($)', 'Total ($)']]
+    const costRows = [['Activity', 'Description', 'Category', 'Quantity', 'Unit Cost (TZS)', 'Total (TZS)']]
     const activities = session.activities || []
     activities.forEach(act => {
         ; (act.costItems || []).forEach(item => {
@@ -48,7 +48,7 @@ export function exportActivityExcel(session) {
     if (session.sessionType === 'invited' && session.selectedCriteria?.length > 0) {
         const criteriaRows = [['Criterion', 'Effect']]
         session.selectedCriteria.forEach(c => {
-            const effect = c.fixedCost ? `+$${c.fixedCost} fixed` : c.multiplier ? `×${c.multiplier}` : ''
+            const effect = c.fixedCost ? `+TZS ${c.fixedCost} fixed` : c.multiplier ? `×${c.multiplier}` : ''
             criteriaRows.push([c.label, effect])
         })
         const criteriaSheet = XLSX.utils.aoa_to_sheet(criteriaRows)

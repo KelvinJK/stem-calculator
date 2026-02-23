@@ -145,7 +145,7 @@ export default function ImportModal({ onClose, onImport }) {
                                             <td style={{ padding: '0.45rem 0.75rem', color: 'var(--text-primary)' }}>{r.description}</td>
                                             <td style={{ padding: '0.45rem 0.75rem', color: 'var(--text-secondary)' }}>{r.category}</td>
                                             <td style={{ padding: '0.45rem 0.75rem', color: 'var(--text-secondary)' }}>{r.quantity}</td>
-                                            <td style={{ padding: '0.45rem 0.75rem', color: 'var(--text-secondary)' }}>${r.unit_cost}</td>
+                                            <td style={{ padding: '0.45rem 0.75rem', color: 'var(--text-secondary)' }}>TZS {r.unit_cost}</td>
                                         </tr>
                                     ))}
                                 </tbody>

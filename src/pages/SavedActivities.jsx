@@ -16,7 +16,7 @@ import toast from 'react-hot-toast'
 
 function fmt(n) {
     if (!n && n !== 0) return '—'
-    return Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+    return 'TZS ' + Number(n).toLocaleString('en-TZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function fmtDate(dateStr) {

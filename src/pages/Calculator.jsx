@@ -55,7 +55,7 @@ const mkItem = () => ({ ...DEFAULT_COST_ITEM, id: mkId() })
 const mkActivity = (n) => ({ id: `act-${Date.now()}-${n}`, name: `Activity ${n}`, costItems: [mkItem()] })
 
 function fmt(n) {
-    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+    return 'TZS ' + Number(n || 0).toLocaleString('en-TZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function catInfo(id) {
@@ -387,7 +387,7 @@ export default function CalculatorPage() {
                             <div className="criteria-grid">
                                 {SESSION_CRITERIA.map(c => {
                                     const isOn = selectedCriteria.find(s => s.id === c.id)
-                                    const label = c.fixedCost ? `+$${c.fixedCost.toFixed(0)}` : `×${c.multiplier}`
+                                    const label = c.fixedCost ? `+TZS ${c.fixedCost.toFixed(0)}` : `×${c.multiplier}`
                                     return (
                                         <label key={c.id} className={`criterion-item ${isOn ? 'active' : ''}`}>
                                             <input type="checkbox" checked={!!isOn}
@@ -416,7 +416,7 @@ export default function CalculatorPage() {
                     <div className="card-header card-header-gradient">
                         <div className="card-title" style={{ gap: '1rem', flexWrap: 'wrap' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <DollarSign /> Activities
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>TZS</span> Activities
                             </span>
                             {/* Tabs */}
                             <div className="activity-tabs">
@@ -573,7 +573,7 @@ export default function CalculatorPage() {
                 {/* ── Pricing Summary ─────────────────────────────────── */}
                 <div className="card">
                     <div className="card-header card-header-gradient">
-                        <div className="card-title"><DollarSign /> Session Pricing Summary</div>
+                        <div className="card-title"><span style={{ fontWeight: 700, fontSize: '0.85rem' }}>TZS</span> Session Pricing Summary</div>
                     </div>
                     <div className="card-body">
                         <div className="summary-grid">

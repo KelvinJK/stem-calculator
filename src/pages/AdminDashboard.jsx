@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 function fmt(n) {
-    return Number(n || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+    return 'TZS ' + Number(n || 0).toLocaleString('en-TZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
 function fmtDate(ts) {
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
             {tab === 'activities' && (
                 <div className="card">
                     <div className="card-header card-header-gradient">
-                        <div className="card-title"><DollarSign /> All Sessions</div>
+                        <div className="card-title"><span style={{ fontWeight: 700, fontSize: '0.85rem' }}>TZS</span> All Sessions</div>
                         <div style={{ position: 'relative', width: 240 }}>
                             <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                             <input className="form-input" placeholder="Search sessions or users…"
