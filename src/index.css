@@ -1,8 +1,23 @@
 /* ═══════════════════════════════════════════════════════════════
    STEM Sessions Cost Calculator — v2.0 Design System
+   Fonts: Unbounded · Manrope · Open Sans · Arimo · Cause · Mozilla Text
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Font-family custom properties */
+:root {
+  --font-display: 'Unbounded', sans-serif;
+  /* headings, brand */
+  --font-body: 'Manrope', sans-serif;
+  /* primary UI text */
+  --font-ui: 'Open Sans', sans-serif;
+  /* inputs, labels */
+  --font-data: 'Arimo', sans-serif;
+  /* numbers, stats   */
+  --font-brand: 'Cause', sans-serif;
+  /* sidebar logo text */
+  --font-prose: 'Mozilla Text', serif;
+  /* notes, descriptions */
+}
 
 /* ── CSS Variables (Light Mode) ───────────────────────────── */
 :root {
@@ -94,13 +109,49 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   transition: background 0.25s, color 0.25s;
+}
+
+/* ── Typography Roles ─────────────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+input,
+select,
+textarea,
+.form-input,
+.form-label {
+  font-family: var(--font-ui);
+}
+
+.btn {
+  font-family: var(--font-ui);
+}
+
+.stat-value,
+.cost-item-total {
+  font-family: var(--font-data);
+}
+
+/* notes / descriptions use Mozilla Text */
+.sidebar-tip,
+.page-header p,
+.form-hint,
+textarea {
+  font-family: var(--font-prose);
 }
 
 /* ── Layout ───────────────────────────────────────────────── */
@@ -156,12 +207,15 @@ body {
   font-weight: 700;
   color: white;
   line-height: 1.2;
+  font-family: var(--font-brand);
+  letter-spacing: 0.01em;
 }
 
 .sidebar-title p {
   font-size: 0.72rem;
   color: var(--sidebar-text);
   opacity: 0.6;
+  font-family: var(--font-ui);
 }
 
 .sidebar-nav {
