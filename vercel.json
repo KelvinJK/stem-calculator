@@ -2,13 +2,24 @@
     "buildCommand": "npm run build",
     "outputDirectory": "dist",
     "framework": "vite",
-    "routes": [
+    "functions": {
+        "api/index.cjs": {
+            "maxDuration": 30,
+            "includeFiles": "server/**"
+        }
+    },
+    "rewrites": [
         {
-            "handle": "filesystem"
+            "source": "/api/(.*)",
+            "destination": "/api/index.cjs"
         },
         {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "source": "/health",
+            "destination": "/api/index.cjs"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }

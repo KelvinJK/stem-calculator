@@ -38,7 +38,10 @@ app.use((err, req, res, next) => {
     res.status(err.status || 500).json({ error: err.message || 'Internal server error' })
 })
 
-const PORT = process.env.PORT || 4000
-app.listen(PORT, () => console.log(`✅  STEM API running on port ${PORT}`))
+// ── Start server only when running directly (not in Vercel serverless) ──
+if (require.main === module) {
+    const PORT = process.env.PORT || 4000
+    app.listen(PORT, () => console.log(`✅  STEM API running on port ${PORT}`))
+}
 
 module.exports = app

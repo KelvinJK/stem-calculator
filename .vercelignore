@@ -1,3 +1,5 @@
-# Exclude the Node.js API server from Vercel static deployment
-# The api/ folder is deployed separately to Railway
-api/
+# Exclude dev-only files from Vercel deployment
+.neon
+railway_login.js
+*.test.js
+server/db/seed.sql
