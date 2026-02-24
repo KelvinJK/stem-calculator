@@ -1,0 +1,8 @@
+# Railway deployment configuration
+# Nixpacks build config for Node.js API
+
+[phases.build]
+cmds = ["npm ci --only=production"]
+
+[start]
+cmd = "npm run migrate && npm start"
