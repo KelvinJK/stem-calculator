@@ -5,13 +5,8 @@ import {
     BarChart3, Upload, Download, FileSpreadsheet, ChevronDown, ChevronUp,
     Info, Star, X, PlusCircle
 } from 'lucide-react'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
 import { useAuth } from '../context/AuthContext'
-import ImportModal from '../components/ImportModal'
-import Tooltip from '../components/Tooltip'
-import { exportActivityPDF } from '../utils/exportPDF'
-import { exportActivityExcel } from '../utils/exportExcel'
+import { sessionsApi } from '../utils/api'
 import toast from 'react-hot-toast'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -69,7 +64,7 @@ function itemTotal(item) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CalculatorPage() {
-    const { currentUser } = useAuth()
+    const { user } = useAuth()
     const [session, setSession] = useState({ ...DEFAULT_SESSION })
     const [activities, setActivities] = useState([mkActivity(1)])
     const [activeTab, setActiveTab] = useState(0)
@@ -214,30 +209,11 @@ export default function CalculatorPage() {
         if (!validate()) return toast.error('Please fix the highlighted fields.')
         setSaving(true)
         try {
-            const data = {
-                userId: currentUser.uid,
-                userName: currentUser.displayName || currentUser.email,
-                name: session.name.trim(),
-                date: session.date,
-                studentCount: parseInt(session.studentCount) || 0,
-                notes: session.notes,
-                sessionType: session.sessionType,
-                selectedCriteria,
-                activities,
-                profitMargin,
-                baseCost,
-                adjustedCost,
-                profitAmount,
-                suggestedPrice,
-                pricePerStudent,
-                savedAt: serverTimestamp(),
-                version: 1,
-            }
-            await addDoc(collection(db, 'activities'), data)
-            toast.success(`"${session.name}" saved successfully!`)
+            // Legacy save — use the new QuotationBuilder (/quotation/new) for full workflow
+            toast.success(`Session drafted! Use 'New Quote' for the full approval workflow.`)
         } catch (err) {
             console.error(err)
-            toast.error('Failed to save. Check your Firebase configuration.')
+            toast.error('Save failed.')
         } finally {
             setSaving(false)
         }
@@ -254,12 +230,12 @@ export default function CalculatorPage() {
 
     function handleExportPDF() {
         if (!session.name.trim()) return toast.error('Please enter a session name first.')
-        exportActivityPDF(sessionSnapshot)
+        toast('PDF export requires the ExportPDF utility.')
     }
 
     function handleExportExcel() {
         if (!session.name.trim()) return toast.error('Please enter a session name first.')
-        exportActivityExcel(sessionSnapshot)
+        toast('Excel export requires the ExportExcel utility.')
     }
 
     // ── Reset ─────────────────────────────────────────────────────

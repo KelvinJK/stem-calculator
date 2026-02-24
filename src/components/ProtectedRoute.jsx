@@ -1,22 +1,26 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
-    const { currentUser, isAdmin, loading } = useAuth()
+/**
+ * ProtectedRoute — wraps routes needing auth.
+ *
+ * Props:
+ *   allowedRoles?: string[] — if provided, only these roles can access
+ *   redirectTo?: string     — where to send unauthorized users (default '/')
+ */
+export default function ProtectedRoute({ children, allowedRoles, redirectTo = '/login' }) {
+    const { user, loading } = useAuth()
 
-    if (loading) {
-        return (
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', background: 'var(--bg-primary)',
-            }}>
-                <div className="spinner" />
-            </div>
-        )
-    }
+    if (loading) return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+            <div className="spinner" />
+        </div>
+    )
 
-    if (!currentUser) return <Navigate to="/login" replace />
-    if (adminOnly && !isAdmin) return <Navigate to="/" replace />
+    if (!user) return <Navigate to={redirectTo} replace />
+
+    if (allowedRoles && !allowedRoles.includes(user.role))
+        return <Navigate to="/unauthorized" replace />
 
     return children
 }

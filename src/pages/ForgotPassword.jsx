@@ -1,74 +1,55 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { Beaker, Mail, ArrowLeft, Send } from 'lucide-react'
+import { authApi } from '../utils/api'
 import toast from 'react-hot-toast'
+import { BookOpen, Mail, ArrowLeft } from 'lucide-react'
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState('')
-    const [loading, setLoading] = useState(false)
     const [sent, setSent] = useState(false)
-    const { resetPassword } = useAuth()
+    const [loading, setLoading] = useState(false)
 
     async function handleSubmit(e) {
         e.preventDefault()
-        if (!email) return toast.error('Please enter your email address.')
         setLoading(true)
         try {
-            await resetPassword(email)
+            await authApi.forgotPassword({ email })
             setSent(true)
-        } catch (err) {
-            toast.error('Failed to send reset email. Check that your email is correct.')
-        } finally {
-            setLoading(false)
-        }
+        } catch (err) { toast.error(err.message) }
+        finally { setLoading(false) }
     }
 
     return (
         <div className="auth-page">
             <div className="auth-card">
-                <div className="auth-logo">
-                    <div className="sidebar-logo" style={{ width: 52, height: 52, borderRadius: 16 }}>
-                        <Beaker size={26} color="white" />
-                    </div>
-                    <h1 className="auth-title">STEM Sessions</h1>
-                </div>
+                <div className="auth-logo"><BookOpen size={28} color="white" /></div>
+                <h1 className="auth-title">Reset Password</h1>
+                <p className="auth-sub">
+                    {sent ? 'Check your inbox for a reset link.' : 'Enter your email to receive a password reset link.'}
+                </p>
 
-                {sent ? (
-                    <div className="auth-form" style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: 48, marginBottom: '1rem' }}>📬</div>
-                        <h2 className="auth-heading">Check your email</h2>
-                        <p className="auth-desc" style={{ marginBottom: '1.5rem' }}>
-                            We sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the link.
-                        </p>
-                        <Link to="/login" className="btn btn-primary w-full" style={{ height: 48, display: 'flex', justifyContent: 'center' }}>
-                            <ArrowLeft size={18} /> Back to Login
-                        </Link>
-                    </div>
-                ) : (
+                {!sent && (
                     <form onSubmit={handleSubmit} className="auth-form">
-                        <h2 className="auth-heading">Reset your password</h2>
-                        <p className="auth-desc">Enter your email and we'll send you a reset link.</p>
-
                         <div className="form-group">
-                            <label className="form-label"><Mail size={14} /> Email address</label>
-                            <input className="form-input" type="email" placeholder="you@example.com"
-                                value={email} onChange={e => setEmail(e.target.value)} required />
+                            <label className="form-label"><Mail size={13} /> Email Address</label>
+                            <input className="form-input" type="email" value={email}
+                                onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
                         </div>
-
-                        <button className="btn btn-primary w-full" type="submit" disabled={loading}
-                            style={{ marginTop: '0.5rem', height: 48 }}>
-                            {loading ? <span className="spinner-sm" /> : <Send size={18} />}
+                        <button className="btn btn-primary w-full" disabled={loading}>
                             {loading ? 'Sending…' : 'Send Reset Link'}
                         </button>
                     </form>
                 )}
 
-                <p className="auth-footer">
-                    <Link to="/login" className="auth-link">
-                        <ArrowLeft size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> Back to Login
-                    </Link>
-                </p>
+                {sent && (
+                    <p style={{ color: 'var(--success)', fontWeight: 600, marginTop: '1rem' }}>
+                        ✅ If that email exists, a reset link has been sent.
+                    </p>
+                )}
+
+                <div className="auth-links">
+                    <Link to="/login"><ArrowLeft size={12} /> Back to Sign In</Link>
+                </div>
             </div>
         </div>
     )

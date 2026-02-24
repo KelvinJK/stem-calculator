@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Calculator, BookMarked, Menu, X, Beaker, Moon, Sun, LogOut, LayoutDashboard, User } from 'lucide-react'
+import {
+    Calculator, Package, FlaskConical, FileText, Menu, X,
+    Beaker, Moon, Sun, LogOut, LayoutDashboard, User, TrendingUp
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
-
-const navItems = [
-    { title: 'Calculator', url: '/', icon: Calculator },
-    { title: 'Saved Activities', url: '/savedactivities', icon: BookMarked },
-]
 
 export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [theme, setTheme] = useState(() => localStorage.getItem('stem-theme') || 'light')
     const location = useLocation()
     const navigate = useNavigate()
-    const { currentUser, isAdmin, logout } = useAuth()
+    const { user, isAdmin, canEdit, logout } = useAuth()
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme)
@@ -23,19 +21,25 @@ export default function Layout({ children }) {
 
     const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
 
-    const isActive = (url) => {
+    function isActive(url) {
         if (url === '/') return location.pathname === '/'
         return location.pathname.toLowerCase().startsWith(url.toLowerCase())
     }
 
-    async function handleLogout() {
-        try {
-            await logout()
-            navigate('/login')
-        } catch {
-            toast.error('Failed to sign out.')
-        }
+    function handleLogout() {
+        logout()
+        navigate('/login')
+        toast.success('Signed out')
     }
+
+    // Build nav dynamically based on role
+    const navItems = [
+        { title: 'My Quotes', url: '/sessions', icon: FileText },
+        { title: 'New Quote', url: '/quotation/new', icon: Calculator },
+        { title: 'Materials', url: '/materials', icon: Package },
+        ...(canEdit ? [{ title: 'Activities', url: '/activities', icon: FlaskConical }] : []),
+        ...(isAdmin ? [{ title: 'Admin Dashboard', url: '/admin', icon: LayoutDashboard }] : []),
+    ]
 
     return (
         <div className="app-layout">
@@ -66,24 +70,19 @@ export default function Layout({ children }) {
                             <span>{item.title}</span>
                         </NavLink>
                     ))}
-
-                    {isAdmin && (
-                        <NavLink to="/admin"
-                            className={`nav-item ${isActive('/admin') ? 'active' : ''}`}
-                            onClick={() => setSidebarOpen(false)}>
-                            <LayoutDashboard size={19} />
-                            <span>Admin Dashboard</span>
-                        </NavLink>
-                    )}
                 </nav>
 
-                {/* Pro tip */}
-                <div style={{ padding: '0 1rem', marginBottom: '0.75rem' }}>
-                    <div className="sidebar-tip">
-                        💡 <strong>Pro Tip</strong><br />
-                        Save activities as templates to reuse them quickly in future sessions.
+                {/* Role badge tip */}
+                {user && (
+                    <div style={{ padding: '0 1rem', marginBottom: '0.75rem' }}>
+                        <div className="sidebar-tip">
+                            🔑 Signed in as <strong style={{ textTransform: 'capitalize' }}>{user.role}</strong>
+                            {user.role === 'marketing' && (
+                                <><br />Contact an admin to unlock curator access.</>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* User + controls */}
                 <div className="sidebar-footer">
@@ -92,8 +91,8 @@ export default function Layout({ children }) {
                             <User size={16} color="white" />
                         </div>
                         <div className="user-info">
-                            <div className="user-name">{currentUser?.displayName || 'User'}</div>
-                            <div className="user-email">{currentUser?.email}</div>
+                            <div className="user-name">{user?.name || 'User'}</div>
+                            <div className="user-email">{user?.email}</div>
                         </div>
                     </div>
                     <div className="sidebar-controls">

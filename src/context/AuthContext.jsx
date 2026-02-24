@@ -1,94 +1,64 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    sendPasswordResetEmail,
-    updateProfile,
-} from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
-import { auth, db } from '../firebase'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { authApi } from '../utils/api'
 
 const AuthContext = createContext(null)
 
-export function useAuth() {
-    return useContext(AuthContext)
-}
-
 export function AuthProvider({ children }) {
-    const [currentUser, setCurrentUser] = useState(null)
-    const [userRole, setUserRole] = useState('user')
-    const [userDoc, setUserDoc] = useState(null)
+    const [user, setUser] = useState(null)
     const [loading, setLoading] = useState(true)
 
-    async function signup(email, password, displayName) {
-        const cred = await createUserWithEmailAndPassword(auth, email, password)
-        await updateProfile(cred.user, { displayName })
-        const role = email === import.meta.env.VITE_ADMIN_EMAIL ? 'admin' : 'user'
-        await setDoc(doc(db, 'users', cred.user.uid), {
-            email,
-            displayName,
-            role,
-            createdAt: serverTimestamp(),
-        })
-        return cred
+    // On mount, restore session from localStorage
+    useEffect(() => {
+        const token = localStorage.getItem('stem_token')
+        const saved = localStorage.getItem('stem_user')
+        if (token && saved) {
+            setUser(JSON.parse(saved))
+            // Re-validate token against /me
+            authApi.me()
+                .then(u => { setUser(u); localStorage.setItem('stem_user', JSON.stringify(u)) })
+                .catch(() => logout())
+                .finally(() => setLoading(false))
+        } else {
+            setLoading(false)
+        }
+    }, [])
+
+    async function login(email, password) {
+        const { token, user } = await authApi.login({ email, password })
+        localStorage.setItem('stem_token', token)
+        localStorage.setItem('stem_user', JSON.stringify(user))
+        setUser(user)
+        return user
     }
 
-    function login(email, password) {
-        return signInWithEmailAndPassword(auth, email, password)
+    async function register(name, email, password) {
+        const { token, user } = await authApi.register({ name, email, password })
+        localStorage.setItem('stem_token', token)
+        localStorage.setItem('stem_user', JSON.stringify(user))
+        setUser(user)
+        return user
     }
 
     function logout() {
-        return signOut(auth)
+        localStorage.removeItem('stem_token')
+        localStorage.removeItem('stem_user')
+        setUser(null)
     }
 
-    function resetPassword(email) {
-        return sendPasswordResetEmail(auth, email)
-    }
-
-    async function fetchUserDoc(user) {
-        if (!user) {
-            setUserDoc(null)
-            setUserRole('user')
-            return
-        }
-        try {
-            const snap = await getDoc(doc(db, 'users', user.uid))
-            if (snap.exists()) {
-                const data = snap.data()
-                setUserDoc(data)
-                setUserRole(data.role || 'user')
-            }
-        } catch (e) {
-            console.error('Error fetching user doc:', e)
-        }
-    }
-
-    useEffect(() => {
-        const unsub = onAuthStateChanged(auth, async (user) => {
-            setCurrentUser(user)
-            await fetchUserDoc(user)
-            setLoading(false)
-        })
-        return unsub
-    }, [])
-
-    const value = {
-        currentUser,
-        userRole,
-        userDoc,
-        loading,
-        signup,
-        login,
-        logout,
-        resetPassword,
-        isAdmin: userRole === 'admin',
-    }
+    const isAdmin = user?.role === 'admin'
+    const isCurator = user?.role === 'curator'
+    const isMarketing = user?.role === 'marketing'
+    const canEdit = isAdmin || isCurator   // curator + admin can modify materials/activities
 
     return (
-        <AuthContext.Provider value={value}>
-            {!loading && children}
+        <AuthContext.Provider value={{ user, loading, login, register, logout, isAdmin, isCurator, isMarketing, canEdit }}>
+            {children}
         </AuthContext.Provider>
     )
+}
+
+export function useAuth() {
+    const ctx = useContext(AuthContext)
+    if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
+    return ctx
 }

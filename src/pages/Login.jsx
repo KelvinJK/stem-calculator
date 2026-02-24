@@ -1,109 +1,59 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Beaker, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { BookOpen, Mail, Lock, LogIn } from 'lucide-react'
 
 export default function Login() {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [showPw, setShowPw] = useState(false)
-    const [loading, setLoading] = useState(false)
     const { login } = useAuth()
     const navigate = useNavigate()
+    const [form, setForm] = useState({ email: '', password: '' })
+    const [loading, setLoading] = useState(false)
+
+    const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
     async function handleSubmit(e) {
         e.preventDefault()
-        if (!email || !password) return toast.error('Please fill in all fields.')
         setLoading(true)
         try {
-            await login(email, password)
+            const user = await login(form.email, form.password)
+            toast.success(`Welcome back, ${user.name}!`)
             navigate('/')
         } catch (err) {
-            const msg = err.code === 'auth/invalid-credential'
-                ? 'Invalid email or password.'
-                : err.code === 'auth/user-not-found'
-                    ? 'No account found with this email.'
-                    : 'Login failed. Please try again.'
-            toast.error(msg)
-        } finally {
-            setLoading(false)
-        }
+            toast.error(err.message || 'Login failed')
+        } finally { setLoading(false) }
     }
 
     return (
         <div className="auth-page">
             <div className="auth-card">
                 <div className="auth-logo">
-                    <div className="sidebar-logo" style={{ width: 52, height: 52, borderRadius: 16 }}>
-                        <Beaker size={26} color="white" />
-                    </div>
-                    <h1 className="auth-title">STEM Sessions</h1>
-                    <p className="auth-subtitle">Cost Calculator Platform</p>
+                    <BookOpen size={28} color="white" />
                 </div>
+                <h1 className="auth-title">STEM Calculator</h1>
+                <p className="auth-sub">Sign in to your account</p>
 
                 <form onSubmit={handleSubmit} className="auth-form">
-                    <h2 className="auth-heading">Welcome back</h2>
-                    <p className="auth-desc">Sign in to your account to continue</p>
-
                     <div className="form-group">
-                        <label className="form-label"><Mail size={14} /> Email address</label>
-                        <input
-                            className="form-input"
-                            type="email"
-                            placeholder="you@example.com"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            required
-                            autoComplete="email"
-                        />
+                        <label className="form-label"><Mail size={13} /> Email</label>
+                        <input className="form-input" type="email" value={form.email}
+                            onChange={set('email')} placeholder="you@example.com" required />
                     </div>
-
                     <div className="form-group">
-                        <label className="form-label"><Lock size={14} /> Password</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                className="form-input"
-                                type={showPw ? 'text' : 'password'}
-                                placeholder="Enter your password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                required
-                                autoComplete="current-password"
-                                style={{ paddingRight: '2.75rem' }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPw(s => !s)}
-                                style={{
-                                    position: 'absolute', right: '0.75rem', top: '50%',
-                                    transform: 'translateY(-50%)', background: 'none',
-                                    border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
-                                    display: 'flex', alignItems: 'center',
-                                }}
-                            >
-                                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                        </div>
+                        <label className="form-label"><Lock size={13} /> Password</label>
+                        <input className="form-input" type="password" value={form.password}
+                            onChange={set('password')} placeholder="••••••••" required />
                     </div>
-
-                    <div style={{ textAlign: 'right', marginTop: '-0.25rem' }}>
-                        <Link to="/forgot-password" className="auth-link" style={{ fontSize: '0.8rem' }}>
-                            Forgot password?
-                        </Link>
-                    </div>
-
-                    <button className="btn btn-primary w-full" type="submit" disabled={loading}
-                        style={{ marginTop: '0.5rem', height: 48, fontSize: '0.95rem' }}>
-                        {loading ? <span className="spinner-sm" /> : <LogIn size={18} />}
-                        {loading ? 'Signing in…' : 'Sign In'}
+                    <button className="btn btn-primary w-full" disabled={loading}>
+                        {loading ? 'Signing in…' : <><LogIn size={15} /> Sign In</>}
                     </button>
                 </form>
 
-                <p className="auth-footer">
-                    Don't have an account?{' '}
-                    <Link to="/signup" className="auth-link">Create one</Link>
-                </p>
+                <div className="auth-links">
+                    <Link to="/forgot-password">Forgot password?</Link>
+                    <span>·</span>
+                    <Link to="/signup">Create account</Link>
+                </div>
             </div>
         </div>
     )
